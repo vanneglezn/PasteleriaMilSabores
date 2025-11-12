@@ -5,30 +5,32 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.pasteleriamilsabores.model.CartItem
-import com.example.pasteleriamilsabores.model.UserProfile
 import com.example.pasteleriamilsabores.navegation.Screen
 import com.example.pasteleriamilsabores.ui.theme.PasteleriaMilSaboresTheme
 import com.example.pasteleriamilsabores.view.cart.CartScreen
 import com.example.pasteleriamilsabores.view.catalog.CatalogScreen
+import com.example.pasteleriamilsabores.view.payment.PaymentScreen
 import com.example.pasteleriamilsabores.view.profile.ProfileScreen
 import com.example.pasteleriamilsabores.viewmodel.profile.ProfileViewModel
+import com.example.pasteleriamilsabores.data.OrderRepository
 import kotlinx.coroutines.launch
-
-// IMPORTANTE: para el mapeo de drawables
 import com.example.pasteleriamilsabores.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,7 +45,7 @@ class MainActivity : ComponentActivity() {
 
                 val nav = rememberNavController()
 
-                // ===== Carrito en memoria (simple) =====
+                // ===== Carrito en memoria =====
                 val cartItems = remember { mutableStateListOf<CartItem>() }
 
                 fun addToCart(id: String, name: String, price: Int, qty: Int = 1) {
@@ -68,7 +70,6 @@ class MainActivity : ComponentActivity() {
                 fun clearCart() { cartItems.clear() }
                 // =======================================
 
-                // Mapeo simple id -> drawable (usa los nombres exactos en res/drawable)
                 fun imageForProduct(id: String): Int? = when (id) {
                     "1" -> R.drawable.torta_chocolate
                     "2" -> R.drawable.torta_tres_leches
@@ -81,17 +82,23 @@ class MainActivity : ComponentActivity() {
                     else -> null
                 }
 
-                // Para el Drawer: saber ruta actual
+                // Drawer y rutas
                 val backStackEntry by nav.currentBackStackEntryAsState()
                 val currentRoute = backStackEntry?.destination?.route
-                val showDrawer = currentRoute?.let { it != Screen.Login.route && it != Screen.Register.route } ?: false
+                val isAuthRoute = currentRoute == Screen.Login.route || currentRoute == Screen.Register.route
+                val showDrawer = !isAuthRoute
 
-                // Navegar sin duplicar destinos
                 fun NavOptionsBuilder.noDupes(popTo: String? = null) {
                     launchSingleTop = true
                     restoreState = true
                     popTo?.let { route -> popUpTo(route) { inclusive = false; saveState = true } }
                 }
+
+                // ---------- Transiciones (slide + fade) ----------
+                val enterForward = slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(300)) + fadeIn()
+                val exitForward = slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(300)) + fadeOut()
+                val enterBack = slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(300)) + fadeIn()
+                val exitBack = slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(300)) + fadeOut()
 
                 // ---------- NavHost ----------
                 @Composable
@@ -101,6 +108,7 @@ class MainActivity : ComponentActivity() {
                         startDestination = Screen.Login.route,
                         modifier = modifier
                     ) {
+                        // 🔐 Login
                         composable(Screen.Login.route) {
                             com.example.pasteleriamilsabores.view.login.LoginScreen(
                                 onLogin = { nav.navigate(Screen.Catalog.route) { noDupes(popTo = Screen.Login.route) } },
@@ -108,44 +116,58 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        // 🧾 Registro
                         composable(Screen.Register.route) {
                             com.example.pasteleriamilsabores.view.register.RegisterScreen(
                                 onDone = { nav.navigate(Screen.Catalog.route) { noDupes(popTo = Screen.Login.route) } }
                             )
                         }
 
+                        // 🍰 Catálogo
                         composable(Screen.Catalog.route) {
                             CatalogScreen(
                                 onOpenCart = { nav.navigate(Screen.Cart.route) { noDupes(popTo = Screen.Catalog.route) } },
                                 onProductDetail = { product: CartItem ->
                                     val encodedName = Uri.encode(product.name)
                                     val img = imageForProduct(product.id) ?: -1
-                                    nav.navigate("${Screen.ProductDetail.route}/${product.id}/$encodedName/${product.unitPrice}/$img") {
-                                        noDupes()
-                                    }
+                                    nav.navigate("${Screen.ProductDetail.route}/${product.id}/$encodedName/${product.unitPrice}/$img") { noDupes() }
                                 }
                             )
                         }
 
+                        // 🛒 Carrito → Crea pedido y pasa a Pago
                         composable(Screen.Cart.route) {
                             CartScreen(
                                 items = cartItems.toList(),
                                 onQtyChange = { id, newQty -> updateQty(id, newQty) },
                                 onRemove = { id -> removeItem(id) },
                                 onConfirm = {
-                                    val orderNumber = generateOrderNumber()
-                                    nav.navigate("tracking/$orderNumber") { noDupes(popTo = Screen.Catalog.route) }
-                                    clearCart()
+                                    val total = cartItems.sumOf { it.unitPrice * it.qty }
+                                    val trackingId = OrderRepository.create(cartItems.toList(), total)
+                                    nav.navigate("payment/$trackingId") { noDupes(popTo = Screen.Catalog.route) }
                                 },
                                 onBack = { nav.navigateUp() }
                             )
                         }
 
-                        // Tracking con argumento
-                        composable(route = "tracking/{orderNumber}") { back ->
-                            val orderNumber = back.arguments?.getString("orderNumber") ?: ""
+                        // 💳 Pago → Tracking
+                        composable("payment/{trackingId}") { back ->
+                            val trackingId = back.arguments?.getString("trackingId") ?: return@composable
+                            PaymentScreen(
+                                trackingId = trackingId,
+                                onPaid = { id ->
+                                    clearCart()
+                                    nav.navigate("tracking/$id") { noDupes(popTo = Screen.Catalog.route) }
+                                },
+                                onBack = { nav.navigateUp() }
+                            )
+                        }
+
+                        // 🚚 Tracking
+                        composable("tracking/{trackingId}") { back ->
+                            val trackingId = back.arguments?.getString("trackingId") ?: ""
                             com.example.pasteleriamilsabores.view.tracking.TrackingRoute(
-                                orderNumber = orderNumber,
+                                orderNumber = trackingId,
                                 buyerName = "Vanessa González",
                                 onGoProfile = { nav.navigate(Screen.Profile.route) { noDupes(popTo = Screen.Catalog.route) } },
                                 onLogout = {
@@ -157,24 +179,23 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        composable(route = Screen.Profile.route) {
+                        // 👤 Perfil
+                        composable(Screen.Profile.route) {
+                            val context = LocalContext.current
                             val profileVM: ProfileViewModel = viewModel()
-                            val user = profileVM.user.collectAsState().value
 
                             ProfileScreen(
-                                user = user,
-                                onUpdate = { /* TODO: navegar a edición */ },
                                 onLogout = {
-                                    profileVM.logout()
-                                    nav.navigate(route = Screen.Login.route) {
-                                        popUpTo(id = 0) { inclusive = true }
+                                    profileVM.logout(context)
+                                    nav.navigate(Screen.Login.route) {
+                                        popUpTo(0) { inclusive = true }
                                         launchSingleTop = true
                                     }
                                 }
                             )
                         }
 
-                        // Detalle con imageRes en la ruta
+                        // 🧁 Detalle producto
                         composable("${Screen.ProductDetail.route}/{id}/{name}/{price}/{imageRes}") { back ->
                             val id = back.arguments?.getString("id") ?: ""
                             val name = Uri.decode(back.arguments?.getString("name") ?: "Producto")
@@ -195,12 +216,10 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // ---------- UI con o sin Drawer ----------
+                // ---------- UI con Drawer ----------
                 if (showDrawer) {
                     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                     val scope = rememberCoroutineScope()
-                    val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
-                    val closeDrawer: () -> Unit = { scope.launch { drawerState.close() } }
 
                     ModalNavigationDrawer(
                         drawerState = drawerState,
@@ -212,44 +231,25 @@ class MainActivity : ComponentActivity() {
                                     modifier = Modifier.padding(16.dp)
                                 )
 
-                                NavigationDrawerItem(
-                                    label = { Text("Catálogo") },
-                                    selected = currentRoute == Screen.Catalog.route,
-                                    onClick = { nav.navigate(Screen.Catalog.route) { noDupes() }; closeDrawer() }
-                                )
-                                NavigationDrawerItem(
-                                    label = { Text("Carrito") },
-                                    selected = currentRoute == Screen.Cart.route,
-                                    onClick = { nav.navigate(Screen.Cart.route) { noDupes() }; closeDrawer() }
-                                )
-                                NavigationDrawerItem(
-                                    label = { Text("Seguimiento") },
-                                    // Ojo: aquí no coincide la ruta exacta porque tracking lleva argumento
-                                    selected = currentRoute == "tracking/{orderNumber}",
-                                    onClick = {
-                                        nav.navigate("tracking/${generateOrderNumber()}") { noDupes() }
-                                        closeDrawer()
-                                    }
-                                )
-                                NavigationDrawerItem(
-                                    label = { Text("Perfil") },
-                                    selected = currentRoute == Screen.Profile.route,
-                                    onClick = { nav.navigate(Screen.Profile.route) { noDupes() }; closeDrawer() }
-                                )
+                                NavigationDrawerItem(label = { Text("Catálogo") }, selected = currentRoute == Screen.Catalog.route, onClick = {
+                                    nav.navigate(Screen.Catalog.route) { noDupes() }; scope.launch { drawerState.close() }
+                                })
+                                NavigationDrawerItem(label = { Text("Carrito") }, selected = currentRoute == Screen.Cart.route, onClick = {
+                                    nav.navigate(Screen.Cart.route) { noDupes() }; scope.launch { drawerState.close() }
+                                })
+                                NavigationDrawerItem(label = { Text("Perfil") }, selected = currentRoute == Screen.Profile.route, onClick = {
+                                    nav.navigate(Screen.Profile.route) { noDupes() }; scope.launch { drawerState.close() }
+                                })
 
                                 HorizontalDivider()
 
-                                NavigationDrawerItem(
-                                    label = { Text("Cerrar sesión") },
-                                    selected = false,
-                                    onClick = {
-                                        nav.navigate(Screen.Login.route) {
-                                            popUpTo(0) { inclusive = true }
-                                            launchSingleTop = true
-                                        }
-                                        closeDrawer()
+                                NavigationDrawerItem(label = { Text("Cerrar sesión") }, selected = false, onClick = {
+                                    nav.navigate(Screen.Login.route) {
+                                        popUpTo(0) { inclusive = true }
+                                        launchSingleTop = true
                                     }
-                                )
+                                    scope.launch { drawerState.close() }
+                                })
                             }
                         }
                     ) {
@@ -258,7 +258,7 @@ class MainActivity : ComponentActivity() {
                                 TopAppBar(
                                     title = { Text("Mil Sabores") },
                                     navigationIcon = {
-                                        IconButton(onClick = openDrawer) {
+                                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                             Icon(Icons.Filled.Menu, contentDescription = "Menú")
                                         }
                                     }
@@ -273,10 +273,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-// Generador simple de número de pedido
-fun generateOrderNumber(): String {
-    val ts = System.currentTimeMillis() % 1_000_000
-    return "MS-${ts.toString().padStart(6, '0')}"
-}
-

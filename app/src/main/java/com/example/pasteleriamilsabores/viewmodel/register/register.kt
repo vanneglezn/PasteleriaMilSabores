@@ -1,10 +1,12 @@
 package com.example.pasteleriamilsabores.viewmodel.register
 
-
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 data class RegisterUiState(
     val fullName: String = "",
@@ -23,6 +25,7 @@ class RegisterViewModel : ViewModel() {
     private val _ui = MutableStateFlow(RegisterUiState())
     val ui: StateFlow<RegisterUiState> = _ui
 
+    // === Eventos de actualización de campos ===
     fun onNameChange(v: String)      = update { it.copy(fullName = v) }
     fun onPhoneChange(v: String)     = update { it.copy(phone = v) }
     fun onEmailChange(v: String)     = update { it.copy(email = v) }
@@ -37,6 +40,7 @@ class RegisterViewModel : ViewModel() {
         }
     }
 
+    // === Validaciones ===
     private fun validate(s: RegisterUiState): Map<String, String> {
         val e = mutableMapOf<String, String>()
 
@@ -45,7 +49,7 @@ class RegisterViewModel : ViewModel() {
         else if (!s.phone.all { it.isDigit() }) e["phone"] = "Solo dígitos."
         else if (s.phone.length !in 8..12) e["phone"] = "Largo 8–12."
 
-        val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$")
+        val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
         if (s.email.isBlank()) e["email"] = "Ingresa tu correo."
         else if (!emailRegex.matches(s.email)) e["email"] = "Correo inválido."
 
@@ -54,25 +58,26 @@ class RegisterViewModel : ViewModel() {
         return e
     }
 
-    /**
-     * Simula el registro. Aquí luego llamas a tu repositorio/API.
-     */
-    suspend fun submit(onSuccess: () -> Unit, onError: (String) -> Unit) {
+    // === Simulación de envío del registro ===
+    fun submit(onSuccess: () -> Unit, onError: (String) -> Unit) {
         val errs = validate(_ui.value)
         if (errs.isNotEmpty()) {
             _ui.update { it.copy(errors = errs, canSubmit = false) }
             onError("Revisa los campos.")
             return
         }
+
         _ui.update { it.copy(isLoading = true) }
-        try {
-            // TODO: reemplazar por llamada real (repo/API)
-            // delay(800)
-            _ui.update { it.copy(isLoading = false, success = true) }
-            onSuccess()
-        } catch (ex: Exception) {
-            _ui.update { it.copy(isLoading = false) }
-            onError("No se pudo registrar, intenta de nuevo.")
+
+        viewModelScope.launch {
+            try {
+                delay(400) // simulación
+                _ui.update { it.copy(isLoading = false, success = true) }
+                onSuccess()
+            } catch (e: Exception) {
+                _ui.update { it.copy(isLoading = false) }
+                onError(e.message ?: "No se pudo registrar, intenta de nuevo.")
+            }
         }
     }
 }

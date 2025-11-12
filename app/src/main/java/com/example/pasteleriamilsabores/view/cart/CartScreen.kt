@@ -22,11 +22,14 @@ import com.example.pasteleriamilsabores.model.CartItem
 import java.text.NumberFormat
 import java.util.Locale
 
+// ------- Utilidad: formato CLP -------
 private fun formatCLP(value: Int): String {
     val nf = NumberFormat.getCurrencyInstance(Locale("es", "CL"))
+    nf.maximumFractionDigits = 0
     return nf.format(value)
 }
 
+// ------- TopBar con degradé -------
 @Composable
 private fun GradientTopBar(
     title: String,
@@ -67,6 +70,7 @@ private fun GradientTopBar(
     }
 }
 
+// ------- Encabezado de tabla -------
 @Composable
 private fun TableHeader() {
     Row(
@@ -82,6 +86,7 @@ private fun TableHeader() {
     Divider(thickness = 1.dp, color = Color(0xFFFCCFE3))
 }
 
+// ------- Fila de item -------
 @Composable
 private fun CartItemRow(
     item: CartItem,
@@ -139,6 +144,7 @@ private fun CartItemRow(
     Divider(color = Color(0xFFFFEEF6), thickness = 1.dp)
 }
 
+// ------- Pantalla principal -------
 @Composable
 fun CartScreen(
     items: List<CartItem>,
@@ -152,6 +158,32 @@ fun CartScreen(
     Column(Modifier.fillMaxSize()) {
         GradientTopBar(title = "Mi carrito", onBack = onBack)
 
+        if (items.isEmpty()) {
+            // Estado vacío
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Tu carrito está vacío", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Agrega productos desde el catálogo para continuar.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedButton(onClick = { onBack?.invoke() }) {
+                    Text("Volver al catálogo")
+                }
+            }
+            return
+        }
+
+        // Contenido con items
         Column(
             Modifier
                 .fillMaxWidth()
@@ -202,6 +234,7 @@ fun CartScreen(
     }
 }
 
+// ------- Preview -------
 @Preview(showBackground = true)
 @Composable
 private fun CartScreenPreview() {
@@ -227,9 +260,8 @@ private fun CartScreenPreview() {
             items = cart,
             onQtyChange = ::updateQty,
             onRemove = ::remove,
-            onConfirm = { /* TODO: flujo de pago */ },
+            onConfirm = { /* flujo de pago */ },
             onBack = { /* navigateUp() */ }
         )
     }
 }
-
