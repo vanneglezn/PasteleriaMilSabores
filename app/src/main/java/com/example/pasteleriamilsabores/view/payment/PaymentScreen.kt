@@ -86,20 +86,14 @@ fun PaymentScreen(
                 Button(
                     onClick = {
                         OrderRepository.markPaid(trackingId)
+                        OrderRepository.moveToPreparation(trackingId)
                         onPaid(trackingId)
                     },
-                    enabled = true,
-                    modifier = Modifier
-                        .fillMaxWidth(0.7f)
-                        .height(54.dp),
-                    shape = MaterialTheme.shapes.large,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFBCFE8),
-                        contentColor = Color(0xFF9D174D)
-                    )
-                ) {
-                    Text("Pagar ahora", fontSize = MaterialTheme.typography.titleMedium.fontSize)
-                }
+                    enabled = order != null,   // ← esto quita el warning y protege el click
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Pagar ahora") }
+
+
             }
         }
     }

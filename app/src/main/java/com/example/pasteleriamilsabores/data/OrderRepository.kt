@@ -1,54 +1,57 @@
 package com.example.pasteleriamilsabores.data
 
-
-import com.example.pasteleriamilsabores.model.*
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import kotlin.random.Random
+import com.example.pasteleriamilsabores.model.CartItem
+import com.example.pasteleriamilsabores.viewmodel.tracking.OrderStatus
+import java.text.SimpleDateFormat
+import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 object OrderRepository {
-    private val _orders = MutableStateFlow<Map<String, Order>>(emptyMap())
-    val orders = _orders.asStateFlow()
 
-    private fun genTracking(): String {
-        val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmm"))
-        val rnd = (1..4).joinToString("") { ('A'..'Z').random().toString() }
-        return "MS-$stamp-$rnd"      // ej: MS-20251112-ABCD
-    }
+    data class Order(
+        val id: String,
+        val items: List<CartItem>,
+        val total: Int,
+        var status: OrderStatus = OrderStatus.PENDIENTE_PAGO,
+        val createdAt: String = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+    )
 
+    private val orders = ConcurrentHashMap<String, Order>()
+
+    /** ✅ Crear un pedido nuevo en estado pendiente */
     fun create(items: List<CartItem>, total: Int): String {
-        val id = genTracking()
-        _orders.value = _orders.value.toMutableMap().apply {
-            put(id, Order(id, items, total, OrderStatus.PENDIENTE_PAGO))
-        }
+        val stamp = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
+        val id = "MS-$stamp"
+        val order = Order(id = id, items = items, total = total)
+        orders[id] = order
         return id
     }
 
+    /**  Obtener pedido */
+    fun get(id: String): Order? = orders[id]
+
+    /**  Marcar como pagado → CONFIRMADO */
     fun markPaid(id: String) {
-        _orders.value[id]?.let { old ->
-            _orders.value = _orders.value.toMutableMap().apply {
-                put(id, old.copy(status = OrderStatus.PAGADO))
-            }
+        orders[id]?.status = OrderStatus.CONFIRMADO
+    }
+
+    /**  Pasar a elaboración (luego de pagado) */
+    fun moveToPreparation(id: String) {
+        orders[id]?.status = OrderStatus.EN_ELABORACION
+    }
+
+    /**  Avanzar para uso del administrador (no cliente) */
+    fun advanceForStaff(id: String) {
+        val order = orders[id] ?: return
+        order.status = when (order.status) {
+            OrderStatus.EN_ELABORACION -> OrderStatus.EN_RUTA
+            OrderStatus.EN_RUTA -> OrderStatus.ENTREGADO
+            else -> order.status
         }
     }
 
-    fun advanceStatus(id: String) {
-        _orders.value[id]?.let { o ->
-            val next = when (o.status) {
-                OrderStatus.PAGADO -> OrderStatus.PREPARANDO
-                OrderStatus.PREPARANDO -> OrderStatus.EN_CAMINO
-                OrderStatus.EN_CAMINO -> OrderStatus.ENTREGADO
-                else -> o.status
-            }
-            if (next != o.status) {
-                _orders.value = _orders.value.toMutableMap().apply {
-                    put(id, o.copy(status = next))
-                }
-            }
-        }
+    /**  Limpiar pedidos (útil en pruebas) */
+    fun clear() {
+        orders.clear()
     }
-
-    fun get(id: String): Order? = _orders.value[id]
 }
