@@ -6,8 +6,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,7 +56,7 @@ private fun GradientTopBar(
             if (onBack != null) {
                 IconButton(onClick = onBack) {
                     Icon(
-                        imageVector = Icons.Filled.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Volver",
                         tint = Color.White
                     )
@@ -83,7 +85,7 @@ private fun TableHeader() {
         Text("Cantidad", fontWeight = FontWeight.SemiBold)
         Text("Precio", fontWeight = FontWeight.SemiBold)
     }
-    Divider(thickness = 1.dp, color = Color(0xFFFCCFE3))
+    HorizontalDivider(thickness = 1.dp, color = Color(0xFFFCCFE3))
 }
 
 // ------- Fila de item -------

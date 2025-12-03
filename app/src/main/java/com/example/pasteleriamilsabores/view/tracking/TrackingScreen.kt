@@ -17,14 +17,27 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.pasteleriamilsabores.viewmodel.tracking.OrderStatus
 import com.example.pasteleriamilsabores.viewmodel.tracking.TrackingUiState
 import com.example.pasteleriamilsabores.viewmodel.tracking.TrackingViewModel
+// 💡 NUEVOS IMPORTS PARA LA INYECCIÓN
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.pasteleriamilsabores.data.OrderRepository // Importar la CLASE Repositorio
 
 @Composable
 fun TrackingRoute(
     orderNumber: String,
     buyerName: String,
+    // 💡 CAMBIO CRUCIAL: ACEPTAR EL REPOSITORIO
+    orderRepository: OrderRepository,
     onGoProfile: () -> Unit,
     onLogout: () -> Unit,
-    viewModel: TrackingViewModel = viewModel()
+    // 💡 USAR FACTORY PARA INYECTAR LA DEPENDENCIA AL VIEWMOMDEL
+    viewModel: TrackingViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer {
+                TrackingViewModel(orderRepository)
+            }
+        }
+    )
 ) {
     LaunchedEffect(orderNumber, buyerName) { viewModel.load(orderNumber, buyerName) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()

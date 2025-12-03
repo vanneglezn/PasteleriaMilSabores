@@ -22,21 +22,36 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+// 💡 NUEVOS IMPORTS PARA LA INYECCIÓN
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.pasteleriamilsabores.data.AuthRepository // Importar Repositorio de Autenticación
 import kotlinx.coroutines.launch
 import com.example.pasteleriamilsabores.viewmodel.register.RegisterViewModel
-import androidx.core.content.edit // 👈 para usar sp.edit { ... }
+// import androidx.core.content.edit // ❌ ELIMINADO: No se usa SharedPreferences
+
 
 @Composable
 fun RegisterScreen(
     onDone: () -> Unit,
     onBackToLogin: () -> Unit = {},
-    vm: RegisterViewModel = viewModel()
+    // 💡 CAMBIO 1: RECIBIR EL REPOSITORIO COMO DEPENDENCIA
+    authRepository: AuthRepository
 ) {
+    // 💡 CAMBIO 2: FACTORY PARA INYECTAR LA DEPENDENCIA
+    val vm: RegisterViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer {
+                RegisterViewModel(authRepository)
+            }
+        }
+    )
+
     val ui by vm.ui.collectAsStateWithLifecycle()
     val snack = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()                 // 👈 usaremos scope.launch
-    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current // Contexto sigue siendo necesario para algunos casos (Snackbars/etc)
     var showPass by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
@@ -129,12 +144,11 @@ fun RegisterScreen(
                 onClick = {
                     vm.submit(
                         onSuccess = {
-                            // Guardado local
-                            saveLocalUser(context, ui.fullName, ui.email, ui.phone)
+                            // 💡 CAMBIO 3: ELIMINAR LLAMADA AL GUARDADO LOCAL (Room lo hace vía VM)
+                            // saveLocalUser(context, ui.fullName, ui.email, ui.phone) // <-- ELIMINADO
                             onDone()
                         },
                         onError = { msg ->
-                            // ⛔ NO usar LaunchedEffect aquí (no es composable)
                             scope.launch { snack.showSnackbar(msg) }
                         }
                     )
@@ -158,11 +172,3 @@ fun RegisterScreen(
     }
 }
 
-private fun saveLocalUser(context: Context, name: String, email: String, phone: String) {
-    val sp = context.getSharedPreferences("userPrefs", Context.MODE_PRIVATE)
-    sp.edit {
-        putString("nombre", name)
-        putString("correo", email)
-        putString("telefono", phone)
-    } // apply() implícito con la ext KTX
-}

@@ -4,54 +4,76 @@ import com.example.pasteleriamilsabores.model.CartItem
 import com.example.pasteleriamilsabores.viewmodel.tracking.OrderStatus
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.withContext
 
-object OrderRepository {
 
-    data class Order(
-        val id: String,
-        val items: List<CartItem>,
-        val total: Int,
-        var status: OrderStatus = OrderStatus.PENDIENTE_PAGO,
-        val createdAt: String = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+data class OrderModel(
+    val id: String,
+    val items: List<CartItem>,
+    val total: Int,
+    var status: OrderStatus,
+    val createdAt: String
+)
+
+
+class OrderRepository(private val orderDao: OrderDao) {
+
+    private fun OrderWithItems.toDomainModel() = OrderModel(
+        id = order.id,
+        items = items.map { CartItem(it.itemId, it.name, it.unitPrice, it.qty) },
+        total = order.total,
+        status = order.status,
+        createdAt = order.createdAt
     )
 
-    private val orders = ConcurrentHashMap<String, Order>()
+    private fun List<CartItem>.toItemEntities(orderId: String) = this.map {
+        OrderItemEntity(orderId, it.id, it.name, it.unitPrice, it.qty)
+    }
 
-    /** ✅ Crear un pedido nuevo en estado pendiente */
-    fun create(items: List<CartItem>, total: Int): String {
+    /** ✅ Crear un pedido nuevo en estado pendiente (usando Room) */
+    suspend fun create(items: List<CartItem>, total: Int): String = withContext(Dispatchers.IO) {
         val stamp = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
         val id = "MS-$stamp"
-        val order = Order(id = id, items = items, total = total)
-        orders[id] = order
-        return id
+
+        // 1. Crear entidades
+        val orderEntity = OrderEntity(id, total, OrderStatus.PENDIENTE_PAGO, SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()))
+        val itemEntities = items.toItemEntities(id)
+
+        // 2. Guardar en Room
+        orderDao.insertOrder(orderEntity)
+        orderDao.insertOrderItems(itemEntities)
+
+        return@withContext id
     }
 
-    /**  Obtener pedido */
-    fun get(id: String): Order? = orders[id]
-
-    /**  Marcar como pagado → CONFIRMADO */
-    fun markPaid(id: String) {
-        orders[id]?.status = OrderStatus.CONFIRMADO
+    /** Obtener pedido (como modelo de dominio) */
+    suspend fun get(id: String): OrderModel? = withContext(Dispatchers.IO) {
+        return@withContext orderDao.getOrderWithItemsFlow(id)
+            .firstOrNull() // Obtiene el valor actual del Flow y lo cierra
+            ?.toDomainModel()
     }
 
-    /**  Pasar a elaboración (luego de pagado) */
-    fun moveToPreparation(id: String) {
-        orders[id]?.status = OrderStatus.EN_ELABORACION
+    /** Marcar como pagado → CONFIRMADO */
+    suspend fun markPaid(id: String) = withContext(Dispatchers.IO) {
+        val order = getOrderEntity(id) ?: return@withContext
+        orderDao.updateOrder(order.copy(status = OrderStatus.CONFIRMADO))
     }
 
-    /**  Avanzar para uso del administrador (no cliente) */
-    fun advanceForStaff(id: String) {
-        val order = orders[id] ?: return
-        order.status = when (order.status) {
-            OrderStatus.EN_ELABORACION -> OrderStatus.EN_RUTA
-            OrderStatus.EN_RUTA -> OrderStatus.ENTREGADO
-            else -> order.status
-        }
+    /** Pasar a elaboración (luego de pagado) */
+    suspend fun moveToPreparation(id: String) = withContext(Dispatchers.IO) {
+        val order = getOrderEntity(id) ?: return@withContext
+        orderDao.updateOrder(order.copy(status = OrderStatus.EN_ELABORACION))
     }
 
-    /**  Limpiar pedidos (útil en pruebas) */
-    fun clear() {
-        orders.clear()
-    }
+    // 💡 Función auxiliar para obtener solo la entidad sin los items
+    private suspend fun getOrderEntity(id: String): OrderEntity? =
+        orderDao.getOrderWithItemsFlow(id).firstOrNull()?.order
+
+    /** Limpiar pedidos (opcional, para pruebas) - necesitarías agregar un método DELETE en el DAO */
+    // fun clear() { /* orderDao.clearAllTables() */ }
+
+    // NOTA: Los métodos 'advanceForStaff' también requerirían ser implementados de forma 'suspend'
+    // y usar el DAO.
 }

@@ -1,6 +1,5 @@
 package com.example.pasteleriamilsabores.view.catalog
 
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -8,6 +7,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -31,29 +32,52 @@ import com.example.pasteleriamilsabores.viewmodel.catalog.ProductUi
 import java.text.NumberFormat
 import java.util.Locale
 
-// ---------- Top bar ----------
+// -------- Top bar con buscador --------
 @Composable
-private fun GradientTopBar(
+private fun TopBarWithSearch(
     title: String,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClearQuery: () -> Unit,
     onCartClick: (() -> Unit)? = null
 ) {
     val gradient = Brush.horizontalGradient(listOf(Color(0xFFF9A8D4), Color(0xFFF9A8D4)))
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(gradient)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
+        Text(
+            text = title,
+            color = Color.White,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(Modifier.height(10.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = title,
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                singleLine = true,
+                placeholder = { Text("Buscar por nombre…") },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = onClearQuery) {
+                            Icon(Icons.Default.Clear, contentDescription = "Limpiar búsqueda")
+                        }
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = Color.White
+                )
             )
             onCartClick?.let {
                 Button(
@@ -62,21 +86,24 @@ private fun GradientTopBar(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFFBCFE8),
                         contentColor = Color(0xFF9D174D)
-                    )
+                    ),
+                    modifier = Modifier
+                        .height(56.dp)
+                        .widthIn(min = 120.dp)
                 ) { Text("Ver carrito") }
             }
         }
     }
 }
 
-// ---------- Utilidad peso chileno ----------
+// ---------- Utilidad CLP ----------
 private fun clp(price: Int): String {
     val nf = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("es-CL"))
     nf.maximumFractionDigits = 0
     return nf.format(price)
 }
 
-
+// ---------- Badge ----------
 @Composable
 private fun BestsellerBadge(modifier: Modifier = Modifier) {
     Surface(
@@ -144,7 +171,7 @@ private fun ProductCard(
     }
 }
 
-
+// ---------- Chips estables ----------
 @Composable
 private fun CategoryFilterStable(
     selected: Category,
@@ -181,7 +208,7 @@ private fun CategoryFilterStable(
     }
 }
 
-// ---------- Pantalla (usa ViewModel) ----------
+// ---------- Pantalla (usa ViewModel con búsqueda) ----------
 @Composable
 fun CatalogScreen(
     onOpenCart: () -> Unit,
@@ -191,7 +218,13 @@ fun CatalogScreen(
     val state by viewModel.uiState.collectAsState()
 
     Column(Modifier.fillMaxSize()) {
-        GradientTopBar(title = "Catálogo", onCartClick = onOpenCart)
+        TopBarWithSearch(
+            title = "Catálogo",
+            query = state.query,
+            onQueryChange = { viewModel.updateQuery(it) },
+            onClearQuery = { viewModel.updateQuery("") },
+            onCartClick = onOpenCart
+        )
 
         CategoryFilterStable(
             selected = state.selected,
@@ -217,6 +250,5 @@ fun CatalogScreen(
 @Preview(showBackground = true)
 @Composable
 private fun CatalogPreview() {
-    // Preview con VM por defecto
     CatalogScreen(onOpenCart = {}, onProductDetail = {})
 }

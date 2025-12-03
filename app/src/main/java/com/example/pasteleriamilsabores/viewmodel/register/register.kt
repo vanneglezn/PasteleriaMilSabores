@@ -2,11 +2,13 @@ package com.example.pasteleriamilsabores.viewmodel.register
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
+// 💡 NUEVO IMPORT: Necesitas el AuthRepository para guardar en Room
+import com.example.pasteleriamilsabores.data.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.example.pasteleriamilsabores.model.UserRegistration // Ya estaba aquí, pero es buen recordatorio
 
 data class RegisterUiState(
     val fullName: String = "",
@@ -20,12 +22,13 @@ data class RegisterUiState(
     val success: Boolean = false
 )
 
-class RegisterViewModel : ViewModel() {
+// 💡 CAMBIO CRUCIAL: El ViewModel ahora recibe el Repositorio de Autenticación
+class RegisterViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     private val _ui = MutableStateFlow(RegisterUiState())
     val ui: StateFlow<RegisterUiState> = _ui
 
-    // === Eventos de actualización de campos ===
+    // === Eventos de actualización de campos (sin cambios) ===
     fun onNameChange(v: String)      = update { it.copy(fullName = v) }
     fun onPhoneChange(v: String)     = update { it.copy(phone = v) }
     fun onEmailChange(v: String)     = update { it.copy(email = v) }
@@ -40,7 +43,7 @@ class RegisterViewModel : ViewModel() {
         }
     }
 
-    // === Validaciones ===
+    // === Validaciones (sin cambios) ===
     private fun validate(s: RegisterUiState): Map<String, String> {
         val e = mutableMapOf<String, String>()
 
@@ -58,7 +61,7 @@ class RegisterViewModel : ViewModel() {
         return e
     }
 
-    // === Simulación de envío del registro ===
+    // === Lógica de envío del registro (Modificada) ===
     fun submit(onSuccess: () -> Unit, onError: (String) -> Unit) {
         val errs = validate(_ui.value)
         if (errs.isNotEmpty()) {
@@ -71,12 +74,22 @@ class RegisterViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                delay(400) // simulación
-                _ui.update { it.copy(isLoading = false, success = true) }
-                onSuccess()
+                // 💡 LLAMAR AL REPOSITORIO PARA GUARDAR PERSISTENTEMENTE
+                val success = authRepository.registerUser(_ui.value)
+
+                if (success) {
+                    _ui.update { it.copy(isLoading = false, success = true) }
+                    onSuccess()
+                } else {
+                    // Esto maneja el caso de que el AuthRepository determine que el email ya existe
+                    _ui.update { it.copy(isLoading = false) }
+                    onError("El correo electrónico ya se encuentra registrado.")
+                }
+
             } catch (e: Exception) {
+                // Captura errores de la base de datos (ej. al insertar)
                 _ui.update { it.copy(isLoading = false) }
-                onError(e.message ?: "No se pudo registrar, intenta de nuevo.")
+                onError("Error al guardar registro: Intenta de nuevo. (${e.message})")
             }
         }
     }

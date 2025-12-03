@@ -1,13 +1,13 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+
+    kotlin("kapt")
     alias(libs.plugins.kotlin.compose)
 }
 
 android {
     namespace = "com.example.pasteleriamilsabores"
-
-    // Evita el warning de "Unsupported API" mientras tanto
     compileSdk = 34
 
     defaultConfig {
@@ -16,7 +16,6 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -42,48 +41,79 @@ android {
         compose = true
     }
 
-    // Asegura que el compiler de Compose coincide con el BOM
+    // Debe alinear con tu BOM/compose
     composeOptions {
         kotlinCompilerExtensionVersion = "1.7.3"
     }
 }
 
 dependencies {
-    // BOM de Compose: controla las versiones de todos los artefactos Compose
+    // BOM de Compose
     implementation(platform(libs.androidx.compose.bom))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    // UI Compose (tomará versión desde el BOM)
+    // UI Compose (desde BOM)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
-    // Necesario para fadeIn/fadeOut y demás transiciones nativas
+    // Animaciones nativas (versionada por el BOM)
     implementation("androidx.compose.animation:animation")
 
-    // Navigation Compose (DEJA SOLO UNO; usamos el alias)
+    // Navigation Compose (usa el alias del catálogo)
     implementation(libs.androidx.navigation.compose)
-    // implementation("androidx.navigation:navigation-compose:2.8.0") // <- no usar si ya usas el alias
 
     // Íconos extendidos (desde BOM)
     implementation("androidx.compose.material:material-icons-extended")
 
-    // StateFlow + Compose (alineados en 2.8.7)
+    // Lifecycle Compose
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
+    implementation("com.google.maps.android:maps-compose:4.4.0")
+    implementation("com.google.android.gms:play-services-maps:19.0.0")
+
+    val mockitoVersion = "5.11.0" // Versión estable
+    testImplementation("org.mockito:mockito-core:$mockitoVersion")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.3.1")
+
+
+
+
+
+    val roomVersion = "2.6.1"
+    val retrofitVersion = "2.9.0"
+
+    // --- Local Storage: Room (Persistencia de pedidos) ---
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    kapt("androidx.room:room-compiler:$roomVersion")
+
+    // --- APIs Externas: Retrofit/Gson (Para consumir el Gist/otras APIs) ---
+    implementation("com.squareup.retrofit2:retrofit:$retrofitVersion")
+    implementation("com.squareup.retrofit2:converter-gson:$retrofitVersion")
+
+    // --- APIs Externas: Google Maps (Para la ubicación del local) ---
+    implementation("com.google.maps.android:maps-compose:4.4.0")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+
+
     // Herramientas de depuración
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     // Tests
     testImplementation(libs.junit)
+
+
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

@@ -2,6 +2,7 @@ package com.example.pasteleriamilsabores.viewmodel.tracking
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+// 💡 La clase OrderRepository se importa, pero ahora se usa por inyección
 import com.example.pasteleriamilsabores.data.OrderRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,7 +30,8 @@ data class TrackingUiState(
 )
 
 // ViewModel para Tracking (solo lectura del estado actual)
-class TrackingViewModel : ViewModel() {
+// 💡 CAMBIO CRUCIAL: ACEPTAR OrderRepository en el constructor
+class TrackingViewModel(private val orderRepository: OrderRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TrackingUiState())
     val uiState: StateFlow<TrackingUiState> = _uiState
@@ -37,15 +39,16 @@ class TrackingViewModel : ViewModel() {
     // Carga los datos desde el repositorio
     fun load(orderNumber: String, buyerName: String) {
         viewModelScope.launch {
-            val order = OrderRepository.get(orderNumber)
+            // 💡 USAR LA INSTANCIA INYECTADA, Y APROVECHAR QUE ES SUSPEND
+            val order = orderRepository.get(orderNumber)
             _uiState.update {
                 it.copy(
                     orderNumber = orderNumber,
                     buyerName = buyerName,
+                    // El campo 'order' ahora es OrderModel, que tiene la propiedad 'status'
                     status = order?.status ?: OrderStatus.PENDIENTE_PAGO
                 )
             }
         }
     }
 }
-

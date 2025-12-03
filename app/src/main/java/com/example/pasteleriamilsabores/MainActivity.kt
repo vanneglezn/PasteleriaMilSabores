@@ -29,14 +29,28 @@ import com.example.pasteleriamilsabores.view.catalog.CatalogScreen
 import com.example.pasteleriamilsabores.view.payment.PaymentScreen
 import com.example.pasteleriamilsabores.view.profile.ProfileScreen
 import com.example.pasteleriamilsabores.viewmodel.profile.ProfileViewModel
-import com.example.pasteleriamilsabores.data.OrderRepository
 import kotlinx.coroutines.launch
 import com.example.pasteleriamilsabores.R
+// 💡 IMPORTS PARA ROOM Y REPOSITORIOS
+import com.example.pasteleriamilsabores.data.AppDatabase
+import com.example.pasteleriamilsabores.data.OrderRepository
+import com.example.pasteleriamilsabores.data.AuthRepository
+import com.example.pasteleriamilsabores.view.contact.ContactScreen
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
 
+    // 💡 DECLARACIÓN DE REPOSITORIOS
+    private lateinit var orderRepository: OrderRepository
+    private lateinit var authRepository: AuthRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        // 💡 INICIALIZACIÓN DE ROOM Y REPOSITORIOS (ANTES DE setContent)
+        val database = AppDatabase.getDatabase(applicationContext)
+        orderRepository = OrderRepository(database.orderDao())
+        authRepository = AuthRepository(database.userDao())
+
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -44,6 +58,8 @@ class MainActivity : ComponentActivity() {
             PasteleriaMilSaboresTheme {
 
                 val nav = rememberNavController()
+                val scope = rememberCoroutineScope()
+
 
                 // ===== Carrito en memoria =====
                 val cartItems = remember { mutableStateListOf<CartItem>() }
@@ -119,11 +135,12 @@ class MainActivity : ComponentActivity() {
                         // 🧾 Registro
                         composable(Screen.Register.route) {
                             com.example.pasteleriamilsabores.view.register.RegisterScreen(
-                                onDone = { nav.navigate(Screen.Catalog.route) { noDupes(popTo = Screen.Login.route) } }
+                                onDone = { nav.navigate(Screen.Catalog.route) { noDupes(popTo = Screen.Login.route) } },
+                                authRepository = authRepository // 💡 CORRECCIÓN APLICADA: Pasa la dependencia
                             )
                         }
 
-                        // 🍰 Catálogo
+                        //  Catálogo
                         composable(Screen.Catalog.route) {
                             CatalogScreen(
                                 onOpenCart = { nav.navigate(Screen.Cart.route) { noDupes(popTo = Screen.Catalog.route) } },
@@ -142,9 +159,11 @@ class MainActivity : ComponentActivity() {
                                 onQtyChange = { id, newQty -> updateQty(id, newQty) },
                                 onRemove = { id -> removeItem(id) },
                                 onConfirm = {
-                                    val total = cartItems.sumOf { it.unitPrice * it.qty }
-                                    val trackingId = OrderRepository.create(cartItems.toList(), total)
-                                    nav.navigate("payment/$trackingId") { noDupes(popTo = Screen.Catalog.route) }
+                                    scope.launch {
+                                        val total = cartItems.sumOf { it.unitPrice * it.qty }
+                                        val trackingId = orderRepository.create(cartItems.toList(), total)
+                                        nav.navigate("payment/$trackingId") { noDupes(popTo = Screen.Catalog.route) }
+                                    }
                                 },
                                 onBack = { nav.navigateUp() }
                             )
@@ -155,6 +174,7 @@ class MainActivity : ComponentActivity() {
                             val trackingId = back.arguments?.getString("trackingId") ?: return@composable
                             PaymentScreen(
                                 trackingId = trackingId,
+                                orderRepository = orderRepository, // 💡 CORRECTO: Pasa la dependencia
                                 onPaid = { id ->
                                     clearCart()
                                     nav.navigate("tracking/$id") { noDupes(popTo = Screen.Catalog.route) }
@@ -169,6 +189,7 @@ class MainActivity : ComponentActivity() {
                             com.example.pasteleriamilsabores.view.tracking.TrackingRoute(
                                 orderNumber = trackingId,
                                 buyerName = "Vanessa González",
+                                orderRepository = orderRepository, // 💡 CORRECTO: Pasa la dependencia
                                 onGoProfile = { nav.navigate(Screen.Profile.route) { noDupes(popTo = Screen.Catalog.route) } },
                                 onLogout = {
                                     nav.navigate(Screen.Login.route) {
@@ -195,6 +216,11 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        // 💡 NUEVA RUTA DE CONTACTO
+                        composable(Screen.Contact.route) {
+                            ContactScreen(nav = nav)
+                        }
+
                         // 🧁 Detalle producto
                         composable("${Screen.ProductDetail.route}/{id}/{name}/{price}/{imageRes}") { back ->
                             val id = back.arguments?.getString("id") ?: ""
@@ -219,7 +245,7 @@ class MainActivity : ComponentActivity() {
                 // ---------- UI con Drawer ----------
                 if (showDrawer) {
                     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-                    val scope = rememberCoroutineScope()
+                    // Ya tenemos scope definido arriba: val scope = rememberCoroutineScope()
 
                     ModalNavigationDrawer(
                         drawerState = drawerState,
@@ -236,6 +262,10 @@ class MainActivity : ComponentActivity() {
                                 })
                                 NavigationDrawerItem(label = { Text("Carrito") }, selected = currentRoute == Screen.Cart.route, onClick = {
                                     nav.navigate(Screen.Cart.route) { noDupes() }; scope.launch { drawerState.close() }
+                                })
+                                // 💡 AGREGAR CONTACTO AL DRAWER
+                                NavigationDrawerItem(label = { Text("Contacto") }, selected = currentRoute == Screen.Contact.route, onClick = {
+                                    nav.navigate(Screen.Contact.route) { noDupes() }; scope.launch { drawerState.close() }
                                 })
                                 NavigationDrawerItem(label = { Text("Perfil") }, selected = currentRoute == Screen.Profile.route, onClick = {
                                     nav.navigate(Screen.Profile.route) { noDupes() }; scope.launch { drawerState.close() }
