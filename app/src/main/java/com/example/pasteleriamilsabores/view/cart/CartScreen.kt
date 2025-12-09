@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.pasteleriamilsabores.view.cart
 
 import androidx.compose.foundation.background
@@ -7,9 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,16 +79,16 @@ private fun TableHeader() {
         Modifier
             .fillMaxWidth()
             .padding(top = 12.dp, bottom = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        // 💡 AJUSTE: Usar Weights para igualar la fila de ítems
     ) {
-        Text("Producto", fontWeight = FontWeight.SemiBold)
-        Text("Cantidad", fontWeight = FontWeight.SemiBold)
-        Text("Precio", fontWeight = FontWeight.SemiBold)
+        Text("Producto", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.5f))
+        Text("Cantidad", fontWeight = FontWeight.SemiBold, modifier = Modifier.width(90.dp)) // Ancho fijo
+        Text("Precio", fontWeight = FontWeight.SemiBold, modifier = Modifier.width(80.dp), textAlign = TextAlign.End) // Ancho fijo y alineación
     }
     HorizontalDivider(thickness = 1.dp, color = Color(0xFFFCCFE3))
 }
 
-// ------- Fila de item -------
+// ------- Fila de item (MEJORADA) -------
 @Composable
 private fun CartItemRow(
     item: CartItem,
@@ -99,51 +99,61 @@ private fun CartItemRow(
         Modifier
             .fillMaxWidth()
             .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        // 1. Producto (Toma la mayor parte del espacio)
         Text(
             text = item.name,
-            modifier = Modifier.weight(1.4f),
-            maxLines = 1
+            modifier = Modifier.weight(1.5f), // 💡 AUMENTAR peso (1.5f) para darle más espacio
+            maxLines = 1,
+            style = MaterialTheme.typography.bodyMedium
         )
 
+        // 2. Control de Cantidad (Grupo de botones)
         Row(
-            modifier = Modifier.weight(1f),
+            // 💡 AJUSTE: Dar un ancho fijo a la columna Cantidad para evitar compresión
+            modifier = Modifier.width(90.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.spacedBy(4.dp) // Espacio entre botones
         ) {
+            // Botón de Restar (-)
             OutlinedButton(
                 onClick = {
                     val newQty = (item.qty - 1).coerceAtLeast(0)
                     if (newQty == 0) onRemove(item.id) else onQtyChange(item.id, newQty)
                 },
-                contentPadding = PaddingValues(horizontal = 8.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp),
+                modifier = Modifier.size(30.dp), // 💡 TAMAÑO FIJO para el botón
                 shape = RoundedCornerShape(10.dp)
-            ) { Text("-") }
+            ) { Text("-", fontSize = 12.sp) }
 
+            // Cantidad (x3)
             Text(
                 text = "x${item.qty}",
-                modifier = Modifier.padding(horizontal = 12.dp),
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center
             )
 
+            // Botón de Sumar (+)
             OutlinedButton(
                 onClick = { onQtyChange(item.id, item.qty + 1) },
-                contentPadding = PaddingValues(horizontal = 8.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp),
+                modifier = Modifier.size(30.dp), // 💡 TAMAÑO FIJO para el botón
                 shape = RoundedCornerShape(10.dp)
-            ) { Text("+") }
+            ) { Text("+", fontSize = 12.sp) }
         }
 
+        // 3. Precio (Alineado a la derecha)
         val lineTotal = item.unitPrice * item.qty
         Text(
             text = formatCLP(lineTotal),
-            modifier = Modifier.weight(1f),
+            // 💡 AJUSTE: Darle un ancho fijo (80.dp) para alineación y espacio
+            modifier = Modifier.width(80.dp),
             textAlign = TextAlign.End,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.SemiBold
         )
     }
-    Divider(color = Color(0xFFFFEEF6), thickness = 1.dp)
+    HorizontalDivider(color = Color(0xFFFFEEF6), thickness = 1.dp)
 }
 
 // ------- Pantalla principal -------
@@ -212,7 +222,8 @@ fun CartScreen(
             Spacer(Modifier.height(8.dp))
             Text(
                 text = "Total: ${formatCLP(total)}",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.align(Alignment.End) // Alinear el total a la derecha
             )
 
             Spacer(Modifier.height(16.dp))
@@ -243,8 +254,9 @@ private fun CartScreenPreview() {
     var cart by remember {
         mutableStateOf(
             listOf(
-                CartItem("1", "Torta Vivi", 18000, 1),
-                CartItem("2", "Kuchen Frambuesa", 12000, 2)
+                CartItem("1", "Torta tres leches", 14000, 3),
+                CartItem("2", "Kuchen Frambuesa", 12000, 2),
+                CartItem("3", "Cheesecake Maracuyá", 13500, 1)
             )
         )
     }

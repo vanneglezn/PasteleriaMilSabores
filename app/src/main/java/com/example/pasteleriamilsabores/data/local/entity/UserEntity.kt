@@ -1,5 +1,4 @@
-package com.example.pasteleriamilsabores.data
-
+package com.example.pasteleriamilsabores.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

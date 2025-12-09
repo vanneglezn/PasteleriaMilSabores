@@ -1,7 +1,7 @@
 package com.example.pasteleriamilsabores.data
 
-import com.example.pasteleriamilsabores.data.UserDao
-import com.example.pasteleriamilsabores.data.UserEntity
+import com.example.pasteleriamilsabores.data.local.dao.UserDao
+import com.example.pasteleriamilsabores.data.local.entity.UserEntity
 import com.example.pasteleriamilsabores.viewmodel.register.RegisterUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

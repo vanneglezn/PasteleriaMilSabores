@@ -32,7 +32,7 @@ import com.example.pasteleriamilsabores.viewmodel.profile.ProfileViewModel
 import kotlinx.coroutines.launch
 import com.example.pasteleriamilsabores.R
 // 💡 IMPORTS PARA ROOM Y REPOSITORIOS
-import com.example.pasteleriamilsabores.data.AppDatabase
+import com.example.pasteleriamilsabores.data.local.AppDatabase
 import com.example.pasteleriamilsabores.data.OrderRepository
 import com.example.pasteleriamilsabores.data.AuthRepository
 import com.example.pasteleriamilsabores.view.contact.ContactScreen

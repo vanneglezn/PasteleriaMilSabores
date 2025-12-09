@@ -1,5 +1,9 @@
 package com.example.pasteleriamilsabores.data
 
+import com.example.pasteleriamilsabores.data.local.dao.OrderDao
+import com.example.pasteleriamilsabores.data.local.entity.OrderEntity
+import com.example.pasteleriamilsabores.data.local.entity.OrderItemEntity
+import com.example.pasteleriamilsabores.data.local.entity.OrderWithItems
 import com.example.pasteleriamilsabores.model.CartItem
 import com.example.pasteleriamilsabores.viewmodel.tracking.OrderStatus
 import java.text.SimpleDateFormat
@@ -32,13 +36,18 @@ class OrderRepository(private val orderDao: OrderDao) {
         OrderItemEntity(orderId, it.id, it.name, it.unitPrice, it.qty)
     }
 
-    /** ✅ Crear un pedido nuevo en estado pendiente (usando Room) */
+    // Crear un pedido nuevo en estado pendiente (usando Room) */
     suspend fun create(items: List<CartItem>, total: Int): String = withContext(Dispatchers.IO) {
         val stamp = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
         val id = "MS-$stamp"
 
         // 1. Crear entidades
-        val orderEntity = OrderEntity(id, total, OrderStatus.PENDIENTE_PAGO, SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()))
+        val orderEntity = OrderEntity(
+            id,
+            total,
+            OrderStatus.PENDIENTE_PAGO,
+            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+        )
         val itemEntities = items.toItemEntities(id)
 
         // 2. Guardar en Room
@@ -67,7 +76,7 @@ class OrderRepository(private val orderDao: OrderDao) {
         orderDao.updateOrder(order.copy(status = OrderStatus.EN_ELABORACION))
     }
 
-    // 💡 Función auxiliar para obtener solo la entidad sin los items
+    //  Función auxiliar para obtener solo la entidad sin los items
     private suspend fun getOrderEntity(id: String): OrderEntity? =
         orderDao.getOrderWithItemsFlow(id).firstOrNull()?.order
 

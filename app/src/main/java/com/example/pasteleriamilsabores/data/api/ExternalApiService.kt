@@ -5,8 +5,8 @@ import retrofit2.http.Query
 
 interface ExternalApiService {
 
-    @GET("vanneglezn/56aae097c1bdb69ab0565f7ab66216ee/raw/productos.json")
+    @GET("vanneglezn/56aae097c1bdb69ab0565f7ab66216ee/raw/5af6c5c2075fa240925b40cfdf002321e3c9d494/productos.json")
     suspend fun getProductsFromGist(
-        @Query("timestamp") timestamp: Long // evita caché y trae cambios al instante
+        @Query("t") timestamp: Long
     ): List<ApiProduct>
 }

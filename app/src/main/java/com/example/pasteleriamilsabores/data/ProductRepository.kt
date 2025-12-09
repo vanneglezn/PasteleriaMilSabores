@@ -10,7 +10,7 @@ import kotlinx.coroutines.withContext
 
 object ProductRepository {
 
-    // Mapeo correcto según tu JSON
+
     private fun getImageResource(id: String): Int {
         return when (id) {
             "1" -> R.drawable.torta_chocolate
@@ -44,7 +44,7 @@ object ProductRepository {
         ProductUi(CartItem("8", "Kuchen de manzana", 11500, 1), R.drawable.kuchen_manzana, Category.KUCHEN)
     )
 
-    /** 🔥 Obtiene productos desde Gist o fallback */
+    //Obtiene productos desde Gist o fallback //
     suspend fun getProducts(): List<ProductUi> = withContext(Dispatchers.IO) {
         return@withContext try {
 

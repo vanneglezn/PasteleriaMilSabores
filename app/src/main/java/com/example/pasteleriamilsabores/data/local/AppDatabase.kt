@@ -1,10 +1,16 @@
-package com.example.pasteleriamilsabores.data
+package com.example.pasteleriamilsabores.data.local
 
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import com.example.pasteleriamilsabores.data.local.entity.Converters
+import com.example.pasteleriamilsabores.data.local.dao.OrderDao
+import com.example.pasteleriamilsabores.data.local.entity.OrderEntity
+import com.example.pasteleriamilsabores.data.local.entity.OrderItemEntity
+import com.example.pasteleriamilsabores.data.local.dao.UserDao
+import com.example.pasteleriamilsabores.data.local.entity.UserEntity
 
 // Asegúrate de que todas las Entidades (tablas) estén listadas aquí
 @Database(
