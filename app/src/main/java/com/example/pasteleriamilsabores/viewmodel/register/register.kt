@@ -2,14 +2,13 @@ package com.example.pasteleriamilsabores.viewmodel.register
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-// 💡 NUEVO IMPORT: Necesitas el AuthRepository para guardar en Room
 import com.example.pasteleriamilsabores.data.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import com.example.pasteleriamilsabores.model.UserRegistration // Ya estaba aquí, pero es buen recordatorio
 
+// UI STATE para la pantalla de registro
 data class RegisterUiState(
     val fullName: String = "",
     val phone: String = "",
@@ -22,13 +21,12 @@ data class RegisterUiState(
     val success: Boolean = false
 )
 
-// 💡 CAMBIO CRUCIAL: El ViewModel ahora recibe el Repositorio de Autenticación
 class RegisterViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     private val _ui = MutableStateFlow(RegisterUiState())
     val ui: StateFlow<RegisterUiState> = _ui
 
-    // === Eventos de actualización de campos (sin cambios) ===
+    // === Actualización de campos ===
     fun onNameChange(v: String)      = update { it.copy(fullName = v) }
     fun onPhoneChange(v: String)     = update { it.copy(phone = v) }
     fun onEmailChange(v: String)     = update { it.copy(email = v) }
@@ -43,30 +41,29 @@ class RegisterViewModel(private val authRepository: AuthRepository) : ViewModel(
         }
     }
 
-    // === Validaciones (sin cambios) ===
+    // === Validación ===
     private fun validate(s: RegisterUiState): Map<String, String> {
         val e = mutableMapOf<String, String>()
 
-        if (s.fullName.trim().isEmpty()) e["fullName"] = "Ingresa tu nombre."
-        if (s.phone.isBlank()) e["phone"] = "Ingresa tu celular."
-        else if (!s.phone.all { it.isDigit() }) e["phone"] = "Solo dígitos."
-        else if (s.phone.length !in 8..12) e["phone"] = "Largo 8–12."
+        if (s.fullName.isBlank()) e["fullName"] = "Ingresa tu nombre."
+        if (s.phone.isBlank()) e["phone"] = "Ingresa tu teléfono."
+        else if (!s.phone.all { it.isDigit() }) e["phone"] = "Solo números."
+        else if (s.phone.length !in 8..12) e["phone"] = "Debe estar entre 8 y 12 dígitos."
 
         val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
-        if (s.email.isBlank()) e["email"] = "Ingresa tu correo."
-        else if (!emailRegex.matches(s.email)) e["email"] = "Correo inválido."
+        if (!emailRegex.matches(s.email)) e["email"] = "Correo no válido."
 
         if (s.password.length < 6) e["password"] = "Mínimo 6 caracteres."
 
         return e
     }
 
-    // === Lógica de envío del registro (Modificada) ===
+    // === Registrar usuario en ROOM ===
     fun submit(onSuccess: () -> Unit, onError: (String) -> Unit) {
-        val errs = validate(_ui.value)
-        if (errs.isNotEmpty()) {
-            _ui.update { it.copy(errors = errs, canSubmit = false) }
-            onError("Revisa los campos.")
+        val current = _ui.value
+
+        if (!current.canSubmit) {
+            onError("Revisa los campos antes de continuar.")
             return
         }
 
@@ -74,22 +71,19 @@ class RegisterViewModel(private val authRepository: AuthRepository) : ViewModel(
 
         viewModelScope.launch {
             try {
-                // 💡 LLAMAR AL REPOSITORIO PARA GUARDAR PERSISTENTEMENTE
                 val success = authRepository.registerUser(_ui.value)
 
                 if (success) {
                     _ui.update { it.copy(isLoading = false, success = true) }
                     onSuccess()
                 } else {
-                    // Esto maneja el caso de que el AuthRepository determine que el email ya existe
                     _ui.update { it.copy(isLoading = false) }
-                    onError("El correo electrónico ya se encuentra registrado.")
+                    onError("Ese correo ya está registrado.")
                 }
 
             } catch (e: Exception) {
-                // Captura errores de la base de datos (ej. al insertar)
                 _ui.update { it.copy(isLoading = false) }
-                onError("Error al guardar registro: Intenta de nuevo. (${e.message})")
+                onError("Error al guardar usuario: ${e.message}")
             }
         }
     }

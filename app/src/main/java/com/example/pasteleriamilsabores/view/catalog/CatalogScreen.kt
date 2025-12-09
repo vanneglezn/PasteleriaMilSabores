@@ -26,9 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.pasteleriamilsabores.model.CartItem
-import com.example.pasteleriamilsabores.viewmodel.catalog.Category
-import com.example.pasteleriamilsabores.viewmodel.catalog.CatalogViewModel
-import com.example.pasteleriamilsabores.viewmodel.catalog.ProductUi
+import com.example.pasteleriamilsabores.viewmodel.catalog.*
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -208,7 +206,7 @@ private fun CategoryFilterStable(
     }
 }
 
-// ---------- Pantalla (usa ViewModel con búsqueda) ----------
+// ---------- Pantalla (usa ViewModel con búsqueda y manejo de carga/error) ----------
 @Composable
 fun CatalogScreen(
     onOpenCart: () -> Unit,
@@ -218,6 +216,7 @@ fun CatalogScreen(
     val state by viewModel.uiState.collectAsState()
 
     Column(Modifier.fillMaxSize()) {
+
         TopBarWithSearch(
             title = "Catálogo",
             query = state.query,
@@ -232,16 +231,52 @@ fun CatalogScreen(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
         )
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(state.filtered) { p ->
-                ProductCard(product = p, onProductDetail = onProductDetail)
+        when {
+            state.isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Color(0xFF9D174D))
+                }
+            }
+
+            state.errorMessage != null -> {
+                val error: String? = state.errorMessage // ✅ Guardamos el valor no nulo
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = error.toString(),
+                            color = Color.Red,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                        Button(
+                            onClick = { viewModel.loadProducts() }, // ✅ Llamada pública al método
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF9D174D),
+                                contentColor = Color.White
+                            )
+                        ) { Text("Reintentar") }
+                    }
+                }
+            }
+
+            else -> {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(state.filtered) { p ->
+                        ProductCard(product = p, onProductDetail = onProductDetail)
+                    }
+                }
             }
         }
     }

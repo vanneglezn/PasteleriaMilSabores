@@ -24,12 +24,15 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+
 import com.example.pasteleriamilsabores.viewmodel.login.LoginViewModel
+import com.example.pasteleriamilsabores.data.AuthRepository
 import com.example.pasteleriamilsabores.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,74 +40,69 @@ import com.example.pasteleriamilsabores.R
 fun LoginScreen(
     onLogin: () -> Unit,
     onGoRegister: () -> Unit,
-    vm: LoginViewModel = viewModel()
+    authRepository: AuthRepository // ⬅ necesario para construir el ViewModel
 ) {
+
+    val vm: LoginViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer { LoginViewModel(authRepository) }
+        }
+    )
+
     val ui by vm.uiState.collectAsStateWithLifecycle()
     var showPassword by remember { mutableStateOf(false) }
 
-    // Fondo completo con imagen + degradado
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFFFFE4EC),
-                        Color(0xFFFFC1D6)
-                    )
+                    listOf(Color(0xFFFFE4EC), Color(0xFFFFC1D6))
                 )
             )
     ) {
-        // Imagen decorativa de fondo (ponla en res/drawable)
+
         Image(
-            painter = painterResource(id = R.drawable.bg_pasteles), // cambia por tu imagen
+            painter = painterResource(id = R.drawable.bg_pasteles),
             contentDescription = "Fondo Pastelería",
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .alpha(0.2f) // leve transparencia
+            modifier = Modifier.fillMaxSize().alpha(0.2f)
         )
 
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 32.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo o título
+
             Text(
-                text = "MIL SABORES",
-                color = Color(0xFF8E24AA),
+                "MIL SABORES",
                 fontSize = 36.sp,
                 fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 2.sp
+                letterSpacing = 2.sp,
+                color = Color(0xFF8E24AA)
             )
 
             Spacer(Modifier.height(20.dp))
 
-            // Caja blanca semitransparente
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
+                modifier = Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
                     .alpha(0.95f),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White.copy(alpha = 0.85f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                colors = CardDefaults.cardColors(Color.White.copy(alpha = 0.85f)),
+                elevation = CardDefaults.cardElevation(8.dp)
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
+                    modifier = Modifier.fillMaxWidth().padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+
                     Text(
                         "Iniciar Sesión",
                         style = MaterialTheme.typography.headlineSmall.copy(
-                            color = Color(0xFF6A1B9A),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF6A1B9A)
                         )
                     )
 
@@ -114,11 +112,8 @@ fun LoginScreen(
                         value = ui.email,
                         onValueChange = vm::onEmailChange,
                         label = { Text("Correo electrónico") },
-                        singleLine = true,
                         isError = ui.emailError != null,
-                        supportingText = {
-                            ui.emailError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        },
+                        supportingText = { ui.emailError?.let { Text(it, color = MaterialTheme.colorScheme.error) }},
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next
@@ -134,15 +129,15 @@ fun LoginScreen(
                         label = { Text("Contraseña") },
                         singleLine = true,
                         isError = ui.passError != null,
-                        supportingText = {
-                            ui.passError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        },
-                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                        supportingText = { ui.passError?.let { Text(it, color = MaterialTheme.colorScheme.error) }},
+                        visualTransformation =
+                            if (showPassword) VisualTransformation.None
+                            else PasswordVisualTransformation(),
                         trailingIcon = {
                             IconButton(onClick = { showPassword = !showPassword }) {
                                 Icon(
-                                    imageVector = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                    contentDescription = "Mostrar/Ocultar contraseña",
+                                    if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                    contentDescription = null,
                                     tint = Color(0xFF8E24AA)
                                 )
                             }
@@ -151,7 +146,9 @@ fun LoginScreen(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done
                         ),
-                        keyboardActions = KeyboardActions(onDone = { vm.submitLogin(onSuccess = onLogin) }),
+                        keyboardActions = KeyboardActions {
+                            vm.submitLogin(onSuccess = onLogin)
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -160,10 +157,8 @@ fun LoginScreen(
                     Button(
                         onClick = { vm.submitLogin(onSuccess = onLogin) },
                         enabled = ui.isFormValid && !ui.isLoading,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8E24AA)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
+                        colors = ButtonDefaults.buttonColors(Color(0xFF8E24AA)),
+                        modifier = Modifier.fillMaxWidth().height(50.dp)
                     ) {
                         Text("Ingresar", color = Color.White, fontSize = 18.sp)
                     }

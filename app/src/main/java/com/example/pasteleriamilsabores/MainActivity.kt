@@ -127,18 +127,22 @@ class MainActivity : ComponentActivity() {
                         // 🔐 Login
                         composable(Screen.Login.route) {
                             com.example.pasteleriamilsabores.view.login.LoginScreen(
+                                authRepository = authRepository,  // ✅ aquí pasamos la dependencia
                                 onLogin = { nav.navigate(Screen.Catalog.route) { noDupes(popTo = Screen.Login.route) } },
                                 onGoRegister = { nav.navigate(Screen.Register.route) { noDupes(popTo = Screen.Login.route) } }
                             )
                         }
 
+
                         // 🧾 Registro
                         composable(Screen.Register.route) {
                             com.example.pasteleriamilsabores.view.register.RegisterScreen(
                                 onDone = { nav.navigate(Screen.Catalog.route) { noDupes(popTo = Screen.Login.route) } },
-                                authRepository = authRepository // 💡 CORRECCIÓN APLICADA: Pasa la dependencia
+                                onBackToLogin = { nav.navigate(Screen.Login.route) { noDupes(popTo = Screen.Login.route) } },
+                                authRepository = authRepository
                             )
                         }
+
 
                         //  Catálogo
                         composable(Screen.Catalog.route) {

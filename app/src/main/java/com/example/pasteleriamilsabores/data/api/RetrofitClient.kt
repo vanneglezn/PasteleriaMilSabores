@@ -5,7 +5,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
 
-    // 💡 BASE URL PARA EL GIST (Dominio de GitHub Gist Raw)
+    // URL base para cargar el JSON desde tu Gist
     private const val GIST_BASE_URL = "https://gist.githubusercontent.com/"
 
     private val gistRetrofit = Retrofit.Builder()
